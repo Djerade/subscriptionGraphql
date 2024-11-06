@@ -1,42 +1,48 @@
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
+import { gql } from 'graphql-tag';
+// Data Sample
+const product = [
+  {
+    id: 1,
+    name: 'Product 1',
+    category: "Air Conditionners"
+  },
+  {
+    id: 2,
+    name: 'God of war',
+    category: "Air Conditionners"
+  }
+];
 
-import { WebSocketServer } from 'graphql-ws';
-import express from 'express';
-import { makeExecutableSchema } from '@graphql-tools/schema';
-import { useServer } from 'graphql-ws/lib/use/ws';
-import http from 'http';
-import { typeDefs, resolvers } from './schema';
+// Type
+const typeDefs = gql `
+  type Product {
+    id: ID!
+    name: String!
+    category: String!
+  }
+  type Query {
+    getAllProducts: [Product]
+    getProductsById(id: ID!): Product
+  }
+`;
 
-const app = express();
-const schema = makeExecutableSchema({ typeDefs, resolvers });
+// Resolvers
+const resolvers = {
+  Query: {
+    getAllProducts: () => product,
+    getProductsById: (parent, args) => product.find(p => p.id === args.id)
+  }
+}
 
-const httpServer = http.createServer(app);
-
-const wsServer = new WebSocketServer({
-  server: httpServer,
-  path: '/graphql',
-});
-
-useServer({ schema }, wsServer);
-
+// Server
+const url = "http://localhost:4000/graphql"
 const server = new ApolloServer({
-  schema,
-  plugins: [
-    {
-      async serverWillStart() {
-        return {
-          async drainServer() {
-            wsServer.close();
-          },
-        };
-      },
-    },
-  ],
-});
+  typeDefs,
+  resolvers,
+})
 
-await server.start();
-server.applyMiddleware({ app, path: '/graphql' });
-
-const PORT = 4000;
-httpServer.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}/graphql`);
-});
+startStandaloneServer(server, { listen: { port: 4000}}).then(() => {
+  console.log(`🚀 Apollo Server listening at: ${url}`);
+})
